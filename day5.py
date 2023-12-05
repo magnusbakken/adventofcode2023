@@ -121,12 +121,29 @@ def find_lowest_locations(categories):
     return best_n
 
 
+def find_range_inflection_points(seed_range, categories):
+    prev_n = None
+    prev_result = None
+    for n in range(seed_range[0], seed_range[1] + 1, 100):
+        n_result = move_through_categories([n], categories)
+        if prev_n is not None and n_result < prev_result:
+            print('found inflection point, narrowing')
+            prev_n_ = None
+            prev_result_ = None
+            for n_ in range(prev_n, n + 1, 1):
+                n_result_ = move_through_categories([n_], categories)
+                if prev_n_ is not None and n_result_ > prev_result_:
+                    yield (n_-1, n_)
+        prev_n = n
+        prev_result = n_result
+
+
 def find_inflection_points(seed_ranges, categories):
     best_range_result = float('inf')
     for seed_range in seed_ranges:
         print(f'seed range: {seed_range}')
         min_, max_ = seed_range[0], seed_range[0] + seed_range[1] - 1
-        step = 1000
+        step = 128
         while step > 1:
             if abs(min_ - max_) <= step:
                 print(f'breaking at {min_}, {max_}, {step}')
@@ -162,7 +179,7 @@ def find_inflection_points(seed_ranges, categories):
                     else:
                         min_ = prev
                         max_ = next_
-                    step = step // 10
+                    step = step // 2
                     break
                 prev = next_
                 prev_result = next_result
@@ -189,11 +206,11 @@ def part2(filename):
     seed_ranges, categories = parse(read_input(filename))
     seed_ranges = list(zip(seed_ranges[::2], seed_ranges[1::2]))
 
-    print(find_inflection_points(seed_ranges, categories))
-
-    print('result:')
-    for n in range(3998614523, 3998614534):
-        print(f'{n} -> {move_through_categories([n], categories)}')
+    for seed_range in seed_ranges:
+        print(seed_range)
+        for inflection_point in find_range_inflection_points(seed_range, categories):
+            print(inflection_point)
+        print()
 
 
 if __name__ == '__main__':
