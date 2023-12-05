@@ -31,20 +31,6 @@ class Category:
                 return range_mapping
         return n
 
-    def reverse_map_number(self, n):
-        for range in self.ranges:
-            range_mapping = range.get_reverse_mapping(n)
-            if range_mapping is not None:
-                return range_mapping
-        return n
-
-    def lowest_range(self, n):
-        applicable_ranges = (
-            r for r in self.ranges if r.get_mapping(n) is not None)
-        range_ = list(sorted(applicable_ranges,
-                      key=lambda range: range.destination))
-        return Range(n, n, 1) if len(range_) == 0 else range_[0]
-
 
 def parse_range(lines, idx):
     line = lines[idx]
@@ -100,101 +86,35 @@ def move_through_categories(seeds, categories):
     return lowest
 
 
-def is_in_seed_ranges(n, seed_ranges):
-    for seed_range in seed_ranges:
-        start, amount = seed_range
-        if n >= start and n < start + amount:
-            return True
-    return False
-
-
-def find_lowest_locations(categories):
-    current_category = 'location'
-    best_n = 0
-    while current_category != 'seed':
-        category = next(
-            c for c in categories if c.destination_type == current_category)
-        current_category = category.source_type
-        best_range = category.lowest_range(best_n)
-        best_n = best_range.destination
-
-    return best_n
-
-
 def find_range_inflection_points(seed_range, categories):
     prev_n = None
     prev_result = None
-    for n in range(seed_range[0], seed_range[1] + 1, 100):
+    step = 1000
+    for n in range(seed_range[0], seed_range[0] + seed_range[1], step):
         n_result = move_through_categories([n], categories)
-        if prev_n is not None and n_result < prev_result:
-            print('found inflection point, narrowing')
+        if prev_n is not None and n_result - prev_result != step:
             prev_n_ = None
             prev_result_ = None
-            for n_ in range(prev_n, n + 1, 1):
+            for n_ in range(prev_n, n + 1):
                 n_result_ = move_through_categories([n_], categories)
-                if prev_n_ is not None and n_result_ > prev_result_:
+                if prev_n_ is not None and n_result_ - prev_result_ != 1:
                     yield (n_-1, n_)
+                prev_n_ = n_
+                prev_result_ = n_result_
         prev_n = n
         prev_result = n_result
 
 
-def find_inflection_points(seed_ranges, categories):
-    best_range_result = float('inf')
+def get_best_seed_from_inflection_points(seed_ranges, categories):
+    all_results = []
     for seed_range in seed_ranges:
-        print(f'seed range: {seed_range}')
-        min_, max_ = seed_range[0], seed_range[0] + seed_range[1] - 1
-        step = 128
-        while step > 1:
-            if abs(min_ - max_) <= step:
-                print(f'breaking at {min_}, {max_}, {step}')
-                break
+        for low_point, high_point in find_range_inflection_points(seed_range, categories):
+            low_result = move_through_categories([low_point], categories)
+            high_result = move_through_categories([high_point], categories)
+            all_results.append(low_result)
+            all_results.append(high_result)
 
-            # print(f'min={min_} and max={max_}')
-            min_result = move_through_categories([min_], categories)
-            max_result = move_through_categories([max_], categories)
-            # print(f'min result={min_result} and max result={max_result}')
-
-            if min_result > max_result:
-                # start from max
-                best_result = max_result
-                print('from max', max_, min_, step, len(
-                    list(reversed(range(min_, max_ + 1, step)))))
-                r = reversed(range(min_, max_ + 1, step))
-            else:
-                # start from min
-                best_result = min_result
-                print('from min', min_, max_, len(
-                    list(range(min_, max_ + 1, step))))
-                r = range(min_, max_ + 1, step)
-
-            prev_result = best_result
-            prev = None
-            for next_ in r:
-                next_result = move_through_categories([next_], categories)
-                if next_result > prev_result:
-                    print(f'found inflection point at ({prev}, {next_})')
-                    if prev > next_:
-                        min_ = next_
-                        max_ = prev
-                    else:
-                        min_ = prev
-                        max_ = next_
-                    step = step // 2
-                    break
-                prev = next_
-                prev_result = next_result
-        min_result = move_through_categories([min_], categories)
-        max_result = move_through_categories([max_], categories)
-        print(f'result: min={min_}->{min_result}, max={max_}->{max_result}')
-        print()
-        if min_result < best_range_result:
-            best_range_result = min_result
-            print(f'new best: {min_}->{min_result}')
-        if max_result < best_range_result:
-            best_range_result = max_result
-            print(f'new best: {max_}->{max_result}')
-        print()
-    return best_range_result
+    return min(all_results)
 
 
 def part1(filename):
@@ -205,12 +125,7 @@ def part1(filename):
 def part2(filename):
     seed_ranges, categories = parse(read_input(filename))
     seed_ranges = list(zip(seed_ranges[::2], seed_ranges[1::2]))
-
-    for seed_range in seed_ranges:
-        print(seed_range)
-        for inflection_point in find_range_inflection_points(seed_range, categories):
-            print(inflection_point)
-        print()
+    return get_best_seed_from_inflection_points(seed_ranges, categories)
 
 
 if __name__ == '__main__':
