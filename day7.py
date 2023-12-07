@@ -1,5 +1,6 @@
 from enum import Enum
 from operator import __lt__, __gt__, __ge__, __le__
+from itertools import combinations_with_replacement
 
 
 class OrderedEnum(Enum):
@@ -155,6 +156,61 @@ class Hand:
             return best_substituted_rank
         else:
             return Hand.calculate_rank(cards)
+
+    @staticmethod
+    def calculate_rank_with_jokers2(cards):
+        joker_count = len([card for card in cards if card == 'J'])
+        if joker_count in (4, 5):
+            return Rank.FIVE_OF_A_KIND
+
+        non_joker_cards = [card for card in cards if card != 'J']
+        if joker_count == 3:
+            if non_joker_cards[0] == non_joker_cards[1]:
+                return Rank.FIVE_OF_A_KIND
+            else:
+                return Rank.FOUR_OF_A_KIND
+        elif joker_count == 2:
+            distinct_non_jokers = len(set(non_joker_cards))
+            if distinct_non_jokers == 1:
+                return Rank.FIVE_OF_A_KIND
+            elif distinct_non_jokers == 2:
+                return Rank.FOUR_OF_A_KIND
+            else:
+                return Rank.THREE_OF_A_KIND
+        elif joker_count == 1:
+            rank = Hand.calculate_rank(cards)
+            if rank == Rank.HIGH_CARD:
+                return Rank.ONE_PAIR
+            elif rank == Rank.ONE_PAIR:
+                return Rank.THREE_OF_A_KIND
+            elif rank == Rank.TWO_PAIR:
+                return Rank.FULL_HOUSE
+            elif rank == Rank.THREE_OF_A_KIND:
+                return Rank.FOUR_OF_A_KIND
+            elif rank == Rank.FULL_HOUSE:
+                raise Exception('Cannot have full house with one joker')
+            elif rank == Rank.FOUR_OF_A_KIND:
+                return Rank.FIVE_OF_A_KIND
+            elif rank == Rank.FIVE_OF_A_KIND:
+                raise Exception('Cannot have five of a kind with one joker')
+        else:
+            return Hand.calculate_rank(cards)
+
+    @staticmethod
+    def calculate_rank_with_jokers3(cards):
+        cards = [*cards]
+        best_substituted_rank = None
+
+        joker_indices = [idx for idx, card in enumerate(cards) if card == 'J']
+        joker_count = len(joker_indices)
+        for replacements in combinations_with_replacement(NON_JOKER_CARDS, joker_count):
+            for idx in range(joker_count):
+                cards[joker_indices[idx]] = replacements[idx]
+
+            rank = Hand.calculate_rank(cards)
+            if best_substituted_rank is None or rank > best_substituted_rank:
+                best_substituted_rank = rank
+        return best_substituted_rank
 
     @staticmethod
     def calculate_rank(cards):
